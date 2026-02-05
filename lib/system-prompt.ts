@@ -35,5 +35,4 @@ Output rules:
 - Respond ONLY in valid JSON.
 - Do NOT include explanations outside JSON.
 - Confidence must be a number between 0 and 1.
-
 `;
