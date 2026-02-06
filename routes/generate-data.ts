@@ -43,7 +43,7 @@ export const generateData = async (req: Request) => {
     }
 
     const { prompt, confidenceThreshold } = validData.data;
-    const rows = parseCsv(CSV_PATH);
+    const rows =  await parseCsv(CSV_PATH);
     const agencies = rows.map(normalizeAgency);
 
     const matches: any[] = [];
