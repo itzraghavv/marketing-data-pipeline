@@ -5,6 +5,8 @@ import { SYSTEM_PROMPT } from "../lib/system-prompt";
 import { normalizeAgency } from "../lib/normalize";
 import { CSV_PATH, parseCsv } from "../lib/parse-csv";
 import { buildCompanyContext } from "../lib/build-context";
+import fs from "fs";
+import path from "path";
 
 function extractJson(text: string) {
   return text
@@ -28,22 +30,46 @@ export const generateData = async (req: Request) => {
   });
 
   try {
-    const body = await req.json();
-    const validData = PromptSchema.safeParse(body);
+    const contentType = req.headers.get("content-type");
 
-    if (!validData.success) {
+    if (!contentType?.includes("multipart/form-data")) {
       return new Response(
         JSON.stringify({
           success: false,
-          data: {
-            error: validData.error,
-          },
+          error: "Expected multipart/form-data",
         }),
+        { status: 400 },
       );
     }
 
-    const { prompt, confidenceThreshold } = validData.data;
-    const rows =  await parseCsv(CSV_PATH);
+    const formData = await req.formData();
+
+    const prompt = formData.get("prompt")?.toString();
+    const confidenceThreshold = Number(
+      formData.get("confidenceThreshold") ?? 0.6,
+    );
+    const file = formData.get("file") as File | null;
+
+    if (!prompt) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Prompt is required" }),
+        { status: 400 },
+      );
+    }
+
+    let csvPath: string;
+
+    if (file) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      csvPath = path.join(process.cwd(), "temp", `upload-${Date.now()}.csv`);
+
+      fs.writeFileSync(csvPath, buffer);
+    } else {
+      csvPath = path.join(process.cwd(), "temp", "sample.csv");
+    }
+
+    const rows = await parseCsv(csvPath);
     const agencies = rows.map(normalizeAgency);
 
     const matches: any[] = [];
